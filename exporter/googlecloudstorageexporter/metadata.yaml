@@ -3,7 +3,7 @@ type: googlecloudstorage
 status:
   class: exporter
   stability:
-    development: [logs]
+    development: [logs, traces]
   codeowners:
     active: [constanca-m, braydonk]
     seeking_new: true

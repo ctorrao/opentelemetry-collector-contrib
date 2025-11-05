@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 	"google.golang.org/api/googleapi"
 )
@@ -215,6 +216,31 @@ func TestConsumeLogs(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestConsumeTraces(t *testing.T) {
+	uploadBucketName := "upload-bucket"
+	newTestStorageEmulator(t, "", uploadBucketName)
+
+	encodingSucceedsID := "id_success"
+	mHost := &mockHost{
+		extensions: map[component.ID]component.Component{
+			component.MustNewID(encodingSucceedsID): &mockLogMarshaler{},
+		},
+	}
+	id := component.MustNewID(encodingSucceedsID)
+	gcsExporter := newTestGCSExporter(t, &Config{
+		Bucket: bucketConfig{
+			Name: uploadBucketName,
+		},
+		Encoding: &id,
+	})
+
+	errStart := gcsExporter.Start(t.Context(), mHost)
+	require.NoError(t, errStart)
+
+	err := gcsExporter.ConsumeTraces(t.Context(), ptrace.NewTraces())
+	require.NoError(t, err)
+}
+
 func newTestGCSExporter(t *testing.T, cfg *Config) *storageExporter {
 	exp, err := newStorageExporter(
 		t.Context(),
@@ -286,4 +312,11 @@ func (*mockLogMarshaler) MarshalLogs(_ plog.Logs) ([]byte, error) {
 	return nil, nil
 }
 
-var _ plog.Marshaler = (*mockLogMarshaler)(nil)
+func (*mockLogMarshaler) MarshalTraces(_ ptrace.Traces) ([]byte, error) {
+	return nil, nil
+}
+
+var (
+	_ plog.Marshaler   = (*mockLogMarshaler)(nil)
+	_ ptrace.Marshaler = (*mockLogMarshaler)(nil)
+)
